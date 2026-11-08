@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đăng nhập — Video Admin</title>
+  
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="assets/css/style.css">
+  
+  <!-- SQLite WebAssembly (sql.js) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.12.0/sql-wasm.js"></script>
+  <!-- Supabase JS Client CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <div class="auth-wrapper">
+    <div class="auth-card">
+      <div class="auth-header">
+        <a href="login.html" class="auth-brand">
+          <div class="brand-icon">
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+            </svg>
+          </div>
+          <span>Video Admin</span>
+        </a>
+        <h2 class="auth-title">Đăng nhập Quản trị</h2>
+        <p class="auth-subtitle">Nhập thông tin tài khoản để truy cập hệ thống</p>
+      </div>
+
+      <!-- Security / Demo Notice -->
+      <div class="auth-notice-banner">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span>
+          <strong>Lưu ý kiến trúc:</strong> Website chạy client-side không có server backend. Dữ liệu tài khoản được lưu trong file <code>users.db</code> (IndexedDB).
+        </span>
+      </div>
+
+      <!-- Quick Demo Credentials Box -->
+      <div class="demo-creds-box">
+        <div class="demo-creds-title">
+          <span>Tài khoản mẫu có sẵn:</span>
+          <div style="display: flex; gap: 8px;">
+            <span class="demo-fill-link" id="btnFillDemoAdmin">Điền Admin &rarr;</span>
+            <span class="demo-fill-link" id="btnFillDemoUser" style="color: #0284C7;">Điền User &rarr;</span>
+          </div>
+        </div>
+        <div style="margin-bottom: 4px;">
+          <strong>Admin:</strong> <code>admin@videoadmin.local</code> &bull; MK: <code>Admin@12345</code>
+        </div>
+        <div>
+          <strong>User:</strong> <code>user1@demo.com</code> &bull; MK: <code>User@12345</code>
+        </div>
+      </div>
+
+      <form id="loginForm">
+        <!-- Email -->
+        <div class="form-group">
+          <label class="form-label" for="loginEmail">Email <span class="required">*</span></label>
+          <input type="email" id="loginEmail" class="form-input" placeholder="admin@videoadmin.local" required autofocus>
+          <span class="form-error" id="emailError"></span>
+        </div>
+
+        <!-- Password -->
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+            <label class="form-label" for="loginPassword" style="margin-bottom:0;">Mật khẩu <span class="required">*</span></label>
+            <a href="forgot-password.html" style="font-size: 0.78rem;">Quên mật khẩu?</a>
+          </div>
+          <div class="input-password-wrapper">
+            <input type="password" id="loginPassword" class="form-input" placeholder="••••••••" required>
+            <button type="button" class="password-toggle-btn" id="togglePasswordBtn" aria-label="Hiện/ẩn mật khẩu">
+              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
+            </button>
+          </div>
+          <span class="form-error" id="passwordError"></span>
+        </div>
+
+        <!-- Remember Me Checkbox -->
+        <div class="form-group" style="margin-top: 14px; margin-bottom: 22px;">
+          <label class="form-checkbox-label">
+            <input type="checkbox" id="rememberMe" class="form-checkbox">
+            <span>Ghi nhớ đăng nhập trên thiết bị này</span>
+          </label>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" class="btn btn-primary" id="loginSubmitBtn" style="width: 100%;">
+          Đăng nhập vào Dashboard
+        </button>
+      </form>
+
+      <div class="auth-footer">
+        Chưa có tài khoản? <a href="register.html">Đăng ký tài khoản mới</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="assets/js/database.js"></script>
+  <script src="assets/js/supabaseClient.js"></script>
+  <script src="assets/js/auth.js"></script>
+  <script src="assets/js/app.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Redirect if already logged in
+      if (window.Auth.redirectIfAuthenticated()) return;
+
+      // Initialize database
+      try {
+        await window.DatabaseManager.initDatabases();
+      } catch (err) {
+        window.App.showToast('Lỗi nạp database SQLite: ' + err.message, 'error');
+      }
+
+      // Fill remembered email if exists
+      const rememberedEmail = localStorage.getItem('video_admin_remember_user');
+      if (rememberedEmail) {
+        document.getElementById('loginEmail').value = rememberedEmail;
+        document.getElementById('rememberMe').checked = true;
+      }
+
+      // Quick Demo Credentials fill buttons
+      const btnAdmin = document.getElementById('btnFillDemoAdmin');
+      if (btnAdmin) {
+        btnAdmin.addEventListener('click', () => {
+          document.getElementById('loginEmail').value = 'admin@videoadmin.local';
+          document.getElementById('loginPassword').value = 'Admin@12345';
+          window.App.showToast('Đã điền tài khoản ADMIN mẫu.', 'info');
+        });
+      }
+
+      const btnUser = document.getElementById('btnFillDemoUser');
+      if (btnUser) {
+        btnUser.addEventListener('click', () => {
+          document.getElementById('loginEmail').value = 'user1@demo.com';
+          document.getElementById('loginPassword').value = 'User@12345';
+          window.App.showToast('Đã điền tài khoản USER mẫu (user1@demo.com).', 'info');
+        });
+      }
+
+      // Toggle show/hide password
+      const passInput = document.getElementById('loginPassword');
+      const toggleBtn = document.getElementById('togglePasswordBtn');
+      toggleBtn.addEventListener('click', () => {
+        const isPassword = passInput.getAttribute('type') === 'password';
+        passInput.setAttribute('type', isPassword ? 'text' : 'password');
+        toggleBtn.style.color = isPassword ? 'var(--primary)' : 'var(--text-muted)';
+      });
+
+      // Form submission
+      const form = document.getElementById('loginForm');
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const email = document.getElementById('loginEmail').value.trim();
+        const password = document.getElementById('loginPassword').value;
+        const rememberMe = document.getElementById('rememberMe').checked;
+        const submitBtn = document.getElementById('loginSubmitBtn');
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Đang xác thực...';
+
+        try {
+          const res = await window.Auth.login(email, password, rememberMe);
+          if (res.success) {
+            window.App.showToast('Đăng nhập thành công! Đang chuyển hướng...', 'success');
+            setTimeout(() => {
+              window.location.href = 'index.html';
+            }, 600);
+          } else {
+            window.App.showToast(res.message, 'error');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Đăng nhập vào Dashboard';
+          }
+        } catch (err) {
+          window.App.showToast('Lỗi hệ thống: ' + err.message, 'error');
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Đăng nhập vào Dashboard';
+        }
+      });
+    });
+  </script>
+</body>
+</html>
